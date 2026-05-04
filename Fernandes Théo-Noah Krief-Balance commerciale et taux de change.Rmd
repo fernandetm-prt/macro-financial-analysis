@@ -1,0 +1,1141 @@
+---
+title: "Taux de change et balance commerciale"
+author: "Théo Fernandes, Noah Krief"
+date: "`r Sys.Date()`"
+output:
+  word_document:
+    toc: true
+    number_sections: true
+    toc_depth: '5'
+  pdf_document:
+    latex_engine: xelatex
+    number_sections: true
+    toc: true
+    toc_depth: 5
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo      =TRUE ,   
+  fig.width = 5,
+  fig.height = 3.5,
+  fig.align = "center",
+  out.width = "70%"
+)
+```
+
+
+
+
+
+# Introduction
+
+L’arrivée du président Donald J. Trump à la gouvernance des États-Unis le 20 janvier 2025 a été marquée par l’atteinte du déficit commercial mensuel le plus important des sept dernières décennies, avec une valeur de -136 419 millions de dollars en mars 2025. Comprendre comment un tel niveau a été atteint constitue un enjeu fondamental pour évaluer la santé économique de la première puissance mondiale. Le contexte d’instabilité mondiale actuel — marqué par des tensions géopolitiques, des crises énergétiques successives et un ralentissement des échanges internationaux — confère une importance particulière à l’étude des interactions entre le taux de change réel effectif du dollar américain et la balance commerciale des États-Unis.
+
+Dès son élection en janvier 2017, Donald J. Trump avait déjà profondément modifié les anticipations économiques internationales. À cette période, l’euro s’était apprécié face au dollar, une évolution largement attribuée aux incertitudes politiques et budgétaires entourant les premières réformes économiques de son administration, notamment la réforme fiscale et les tensions diplomatiques avec la Chine et l’Union européenne. Les politiques protectionnistes mises en place à partir de 2018, notamment l’instauration de droits de douane sur l’acier, l’aluminium et de nombreux produits chinois, ont ensuite contribué à accentuer la volatilité du billet vert sur les marchés des changes.
+
+La période d’étude retenue, allant de janvier 2010 à juillet 2025, a été choisie afin d’éviter l’impact direct de la crise financière de 2008 tout en couvrant plusieurs chocs économiques majeurs : la pandémie de 2020, la crise énergétique mondiale, ainsi que les perturbations des chaînes d’approvisionnement liées aux conflits en Ukraine et au Moyen-Orient. L’ensemble de ces événements a considérablement influencé les échanges internationaux et la valeur du dollar sur les marchés mondiaux.
+Pour mesurer l’évolution du dollar, nous utilisons le taux de change effectif réel (RBUSBIS), publié par la Banque des règlements internationaux (BIS). Cet indice reflète la valeur globale du dollar américain face à un large panier de devises pondérées selon l’importance des échanges et corrigées de l’inflation. Ce choix permet d’appréhender la compétitivité extérieure américaine de manière plus complète qu’un simple taux bilatéral, comme l’euro/dollar ou le yuan/dollar.
+
+Notre étude vise à analyser empiriquement dans quelle mesure l’évolution du taux de change effectif réel du dollar influence la balance commerciale américaine. Intuitivement, une appréciation du dollar devrait pénaliser les exportations et creuser le déficit commercial, tandis qu’une dépréciation devrait contribuer à l’atténuer. Toutefois, les résultats empiriques peuvent diverger de cette intuition, notamment en raison des délais d’ajustement dans les échanges ou de facteurs structurels affectant la demande de biens importés et exportés.
+
+Enfin, il convient de souligner que de nombreux déterminants complémentaires influencent la balance commerciale — parmi lesquels les politiques budgétaires, les choix diplomatiques, les niveaux de consommation ou encore la structure des importations d’énergie. Tous ne pourront pas être intégrés dans le cadre de cette étude.
+
+```{r, echo=FALSE,message=FALSE, warning=FALSE,results='hide'}
+rm(list=ls())
+library(readxl)
+library(urca)
+library(forecast)
+library(lmtest)
+library(vars)
+base=read_excel("Copie de Base donnees.xls")
+anyNA(base)
+```
+
+
+# Modélisation univariée
+## Représentations graphiques et autocorrélogrammes simples et partiels des séries.
+
+### Représentation graphique de la balance commerciale
+
+Dans ce projet, la variable Balance correspond à la balance commerciale des États-Unis et la variable RBUSBIS correspond au taux de change réel effectif de l’US dollar.
+
+```{r, echo=FALSE, fig.align='center', out.width='80%'}
+Balance=ts(base$`Trade Balance: Goods and Services, Balance of Payments Basis (Millions of Dollars)`, frequency=12, start=c(2010, 1))
+
+RBUSBIS=ts(base$RBUSBIS, frequency=12, start=c(2010, 1))
+
+
+plot(Balance, main = "Balance commerciale américaine (2010–2025)")
+
+```
+
+L'analyse graphique nous permet de remarquer qu'il existe une forme de stationnarité dans l'évolution de la balance commerciale américaine entre la période 2010 et la période 2019.
+Cependant, la forte baisse observée à partir de 2020, accompagnée d'une variation importante de la variance, indique que la série ne respecte pas les trois critères classiques de stationnarité d’une série temporelle (espérance, variance et covariance) sur l’ensemble de la période.
+En outre, on observe un creusement spectaculaire du déficit à partir de janvier 2025, atteignant son pic historique en mars. Ce mouvement traduit un choc brutal sur les importations lié à l’anticipation de changements de politique commerciale. Toutefois, la remontée immédiate observée dès avril suggère un ajustement ponctuel plutôt qu’un renversement durable de la tendance. Cette dynamique met en évidence la sensibilité accrue de la balance commerciale américaine aux incertitudes économiques et géopolitiques récentes.
+
+### Représentation graphique du taux de change RUBSBIS
+
+```{r, echo=FALSE, fig.align='center', out.width='80%'}
+plot(RBUSBIS, main = "Taux de change RBUSBIS (2010–2025)")
+```
+Le graphique du RBUSBIS est marqué par une croissance entretenue entre 2010 et 2025. Ainsi, il apparaît visuellement que cette série temporelle n'est pas stationnaire, étant donné que l'espérance et la variance ne sont pas constantes sur la totalité de la période.
+De plus, on remarque qu’à partir de 2019, les phases d’appréciation du dollar coïncident avec un creusement du déficit commercial, illustrant visuellement la corrélation négative attendue entre les deux séries. Le niveau record du RBUSBIS de 2025 renforce cette interprétation, puisqu’il s’accompagne simultanément du pic négatif historique de la balance commerciale. Bien que la corrélation négative ne devienne véritablement apparente qu'à partir de 2019, il est pertinent de suggérer que la vigueur exceptionnelle du dollar a contribué à accentuer la détérioration du solde extérieur américain sur la période récente.
+
+### ACF et PACF de la balance commerciale
+
+```{r acf-pacf-1, fig.width=8, fig.height=5, echo=FALSE}
+par(mfrow = c(1, 2))   # 1 ligne, 2 colonnes
+
+acf(as.numeric(Balance), main = "ACF de la balance")
+pacf(as.numeric(Balance), main = "PACF de la balance")
+
+par(mfrow = c(1, 1))  
+
+```
+On observe que les autocorrélations simples de la série Balance ont tendance à décroître très doucement au cours du temps, tendant progressivement vers zéro,contribuant ainsi à appuyer l'hypothèse que cette série n'est pas un processus stationnaire. De plus, on peut également apercevoir que les autocorrélations partielles sont significatives pour les 4 premières valeurs. Il est donc possible de supposer que la série Balance suit un processus AR(4).
+La forte baisse de janvier-mars 2025, bien qu’elle ne concerne que 3 périodes sur 187, semble exercer une influence disproportionnée sur le PACF. L'AR(4) peut s'expliquer du fait que la valeur de la dernière période de la série (juillet 2025) est largement influencée par la valeur de la balance 4 mois auparavant (pic de mars 2025).
+
+### ACF et PACF du taux de change RUBSBIS
+
+```{r acf-pacf-2, fig.width=8, fig.height=5, echo=FALSE}
+par(mfrow = c(1, 2))   # 1 ligne, 2 colonnes
+
+acf(as.numeric(RBUSBIS), main = "ACF du RUBSBIS")
+pacf(as.numeric(RBUSBIS), main = "PACF du RUBSBIS")
+
+par(mfrow = c(1, 1))  
+
+```
+Comme pour la série de la balance commerciale, les autocorrélations simples du RBUSBIS tendent à diminuer lentement avec le nombre de retard (corroborant l'hypothèse de non stationnartié de la série). En outre, les autocorrélations partielles de cette série temporelle diminuent d'un seul coup et deviennent non significatives après seulement 2 retards. Cette représentation graphique nous permet donc de considérer que la série RBUSBIS correspond potentiellement à un processus AR(2).
+
+## Test de racine unitaire
+
+### Balance commerciale
+
+#### Test de Dickey Fuller
+
+##### Modèle 3
+
+Dans cette partie, nous appliquerons la stratégie séquentielle de test de racine unitaire à la variable Balance, qui constitue l'indicateur principal de notre analyse. Nous devons partir du modèle 3, étant le plus général. Afin de réaliser le test de racine unitaire, nous devons poser les hypothèses suivantes :
+
+- **Hypothèses testées :**
+
+  $$
+  H_0 : \phi = 1 \quad \text{versus} \quad H_1 : \phi < 1
+  $$
+
+  ou de façon équivalente :
+
+  $$
+  H_0 : \rho = 0 \quad \text{versus} \quad H_1 : \rho < 0
+  $$
+
+
+- **Statistique de test :**
+
+  $$
+  t_{\hat{\rho}} = \frac{\hat{\rho}}{\hat{\sigma}_{\hat{\rho}}}
+  = \frac{\hat{\phi} - 1}{\hat{\sigma}_{\hat{\phi}}}
+  $$
+
+- **Règle de décision :**
+
+  $$
+  \text{On rejette } H_0 \text{ si } t_{\hat{\rho}} < VC
+  $$
+
+  où VC est la valeur critique (négative) de la table de Dickey-Fuller au seuil de signification choisi, ici 5%.
+
+
+
+```{r, echo=FALSE, results='hide'}
+adfm3_balance <- ur.df(y = Balance, type = "trend", lags = 12, selectlags = "AIC")
+summary(adfm3_balance)
+```
+
+
+
+
+```{r, echo=FALSE, fig.show='hold', out.width="45%", fig.align="center"}
+knitr::include_graphics("test1.jpg")
+knitr::include_graphics("test2.jpg")
+```
+
+Conclusion : 
+
+On a VC = -3.43 et $t_{\hat{\rho}}$=-1.933. Comme $t_{\hat{\rho}}$ > VC, alors on ne rejette pas $H_0$. La série possède donc une racine unitaire et n'est pas stationnaire.
+
+
+Vérifions maintenant s'il faut choisir le modèle 3 pour représenter le processus Balance. Nous posons alors les hypothèses suivantes :
+
+- **Hypothèses :**
+
+  $$
+  H_0 : b = 0 \quad \text{contre} \quad H_1 : b \neq 0
+  $$
+
+- **Statistique de test :**
+
+  $$
+  t_b = \frac{\hat{b}}{\hat{\sigma}_{\hat{b}}}
+  $$
+
+- **Règle de décision (avec racine unitaire) :**
+
+  $$
+  \text{On rejette } H_0 \text{ si } \lvert t_b \rvert > VC_{DF}
+  $$
+
+  où \(VC_{DF}\) est la valeur critique issue des tables de Dickey–Fuller en raison du non-rejet de \(H_0\) lors du test de racine unitaire précédent.
+
+
+Conclusion : 
+
+Nous obtenons une valeur critique de 3,14 et une statistique de test $t_{\hat{b}}$=−2,378. Comme la statistique est inférieure à la valeur critique, nous ne rejetons pas $H_0$. Le processus ne correspond donc pas à un modèle 3.
+
+##### Modèle 2
+
+À présent, nous sommes amenés à vérifier s'il s'agit d'un modèle 2. Tout d'abord vérifions s'il y a une racine unitaire. Posons les hypothèses suivantes:
+
+- **Hypothèses testées :**
+
+  $$
+  H_0 : \phi = 1 \quad \text{versus} \quad H_1 : \phi < 1
+  $$
+
+  ou de façon équivalente :
+
+  $$
+  H_0 : \rho = 0 \quad \text{versus} \quad H_1 : \rho < 0
+  $$
+
+
+- **Statistique de test :**
+
+  $$
+  t_{\hat{\rho}} = \frac{\hat{\rho}}{\hat{\sigma}_{\hat{\rho}}}
+  = \frac{\hat{\phi} - 1}{\hat{\sigma}_{\hat{\phi}}}
+  $$
+
+
+- **Règle de décision :**
+
+  $$
+  \text{On rejette } H_0 \text{ si } t_{\hat{\rho}} < VC
+  $$
+
+  où \(VC\) est la valeur critique (négative) de la table de Dickey–Fuller au seuil de signification choisi, ici 5%.
+
+
+```{r, echo=FALSE, results='hide'}
+adfm2_balance=ur.df(y=Balance, type='drift', lags=12,selectlags="AIC")
+summary(adfm2_balance)
+```
+
+
+
+```{r, echo=FALSE, fig.show='hold', out.width="45%", fig.align="center"}
+knitr::include_graphics("test3.jpg")
+knitr::include_graphics("test4.jpg")
+```
+
+Conclusion : 
+
+Nous obtenons une valeur critique de -2.88 et une statistique de test $t_{\hat{\rho}}$=−0.051 Comme la statistique est supérieure à la valeur critique, nous ne rejetons pas $H_0$ ce qui implique que $\phi$=1. La série présente donc une racine unitaire et n’est pas stationnaire.
+
+Nous effectuons à présent le test permettant de savoir si la série Balance correspond à un modèle 2. 
+
+- **Hypothèses :**
+
+  $$
+  H_0 : c = 0 \quad \text{contre} \quad H_1 : c \neq 0
+  $$
+
+  Si l'hypothèse n'est pas rejetée, la série *Balance* ne peut être décrite par un modèle 2.
+
+
+- **Statistique de test :**
+
+  $$
+  t_c = \frac{\hat{c}}{\hat{\sigma}_{\hat{c}}}
+  $$
+
+
+- **Règle de décision (avec racine unitaire) :**
+
+  $$
+  \text{On rejette } H_0 \text{ si } \lvert t_c \rvert > VC_{DF}
+  $$
+
+  où \(VC_{DF}\) est la valeur critique issue des tables de Dickey–Fuller.
+
+
+Conclusion : 
+
+On a VC = 2.86 et une statistique de test $t_{\hat{c}}$=-0.373. Comme $t_{\hat{c}}$ < VC, nous ne rejetons pas $H_0$ ce qui implique que le processus ne correspond pas à un modèle 2. Donc il s'agit d'un modèle 1
+
+##### Modèle 1
+
+On sait désormais que la variable Balance est modélisée par un modèle 1 mais vérifions si la série possède une racine unitaire ou non.  
+
+- **Hypothèses testées :**
+
+  $$
+  H_0 : \phi = 1 \quad \text{versus} \quad H_1 : \phi < 1
+  $$
+
+  ou de façon équivalente :
+
+  $$
+  H_0 : \rho = 0 \quad \text{versus} \quad H_1 : \rho < 0
+  $$
+
+
+- **Statistique de test :**
+
+  $$
+  t_{\hat{\rho}} = \frac{\hat{\rho}}{\hat{\sigma}_{\hat{\rho}}}
+  = \frac{\hat{\phi} - 1}{\hat{\sigma}_{\hat{\phi}}}
+  $$
+
+
+- **Règle de décision :**
+
+  $$
+  \text{On rejette } H_0 \text{ si } t_{\hat{\rho}} < VC
+  $$
+
+  où \(VC\) est la valeur critique (négative) de la table de Dickey–Fuller au seuil de signification choisi, ici 5%.
+
+
+```{r, echo=FALSE, results='hide'}
+adfm1_balance=ur.df(y=Balance, type='none', lags=12,selectlags="AIC")
+summary(adfm1_balance)
+```
+
+
+
+```{r, echo=FALSE, fig.show='hold', out.width="45%", fig.align="center"}
+knitr::include_graphics("test5.jpg")
+knitr::include_graphics("test6.jpg")
+```
+
+Conclusion : 
+
+On a VC = -1.95 et $t_{\hat{\rho}}$=1.121. Comme $t_{\hat{\rho}}$ > VC, alors on ne rejette pas $H_0$. La série possède donc une racine unitaire et n'est pas stationnaire.
+
+
+Nous pouvons donc conclure que ce processus est un processus DS sans dérive, confirmant bien l'hypothèse de non stationnarité de la série. Afin de stationnariser le processus, il nous suffit de différencier la série temporelle.
+La variable dbalance représente alors la série temporelle des différences premières de la série Balance.
+```{r}
+dbalance=diff(Balance)
+```
+
+
+```{r, echo=FALSE, warning=FALSE,fig.align='center', out.width='80%'}
+plot(dbalance, frame=F, col="red",main="Différentiel balance")
+```
+Ce graphique illustre les variations de la balance commerciale dans le temps. On observe que les fluctuations sont centrées autour de zéro et l'amplitude des variations restent globalement stables dans la durée sauf pour l'année 2025, où l'on observe une forte hausse (conséquence de la chute excepetionnelle de la balance entre janvier et mars 2025). Le processus semble désormais stationnaire.
+
+
+```{r acf-pacf-3, fig.width=8, fig.height=5, echo=FALSE}
+par(mfrow = c(1, 2))   # 1 ligne, 2 colonnes
+
+acf(as.numeric(dbalance), main = "ACF de la différentielle de la balance")
+pacf(as.numeric(dbalance), main = "PACF de la différentielle de la balance")
+
+par(mfrow = c(1, 1))   
+
+```
+
+L'ACF nous montre une chute brutale dès le premier terme, suivie d'une sinusoidale amortie. Les autocorrélations simples demeurent significatives jusqu'au 5ème terme. Le PACF, quant à lui, nous montre un pic significatif au 1er retard, ainsi que trois autres au 3ème, 4ème et 5ème retard. En se basant sur cette analyse graphique on peut supposer qu'il s'agit d'un ARMA, dont les ordres p et q semblent difficiles à déterminer par simple analyse graphique. 
+On constate toutefois une certaine ressemblance avec le PACF de la Balance dont le nombre de retards significatifs était de 4, reflétant la persistance de certaines structures malgré la différenciation.
+
+#### Test KPSS
+
+Réalisons désormais un test KPSS afin de confirmer nos résultats. Nous posons les hypothèses suivantes : 
+
+- \(H_0\) : **pas de racine unitaire**
+- \(H_1\) : **présence d’une racine unitaire**
+
+
+La statistique de test KPSS est :
+\[
+LM = \frac{1}{\hat{S}_T^2} \cdot \frac{1}{T^2} \sum_{t=1}^T S_t^2
+\]
+
+On rejette l’hypothèse nulle \(H_0\) de stationnarité si :
+\[
+LM > VC_\alpha
+\]
+où \(VC_\alpha\) est la **valeur critique** tabulée par les auteurs du test.
+
+```{r,echo=FALSE}
+test <- ur.kpss(Balance, type = 'mu' , lags = 'short') 
+summary(test)
+```
+En effectuant le test KPSS, on observe que la statistique de test $LM_{obs}$=2.5948>0.463=VC. On rejette l'hypothèse nulle de stationnarité au seuil $alpha$=5%, confirmant ainsi le test de Dickey-Fuller augmenté. Le processus Balance est donc bien I(1).
+
+
+### RBUSBIS
+
+#### Test de Dickey Fuller
+
+##### Modèle 3
+Il convient à présent d'appliquer la stratégie séquentielle du test de racine unitaire à série temporelle RBUSBIS.
+Pour réaliser le test de racine unitaire, nous devons poser les hypothèses suivantes :
+
+- **Hypothèses testées :**
+
+  $$
+  H_0 : \phi = 1 \quad \text{versus} \quad H_1 : \phi < 1
+  $$
+
+  ou de façon équivalente :
+
+  $$
+  H_0 : \rho = 0 \quad \text{versus} \quad H_1 : \rho < 0
+  $$
+
+
+- **Statistique de test :**
+
+  $$
+  t_{\hat{\rho}} = \frac{\hat{\rho}}{\hat{\sigma}_{\hat{\rho}}}
+  = \frac{\hat{\phi} - 1}{\hat{\sigma}_{\hat{\phi}}}
+  $$
+
+
+- **Règle de décision :**
+
+  $$
+  \text{On rejette } H_0 \text{ si } t_{\hat{\rho}} < VC
+  $$
+
+  où \(VC\) est la valeur critique (négative) de la table de Dickey–Fuller au seuil de signification choisi, ici 5%.
+
+```{r, echo=FALSE, results='hide'}
+adfm3_rbusbis=ur.df(y=RBUSBIS, type='trend', lags=12, selectlags="AIC")
+summary(adfm3_rbusbis)
+```
+
+
+```{r, echo=FALSE, fig.show='hold', out.width="45%", fig.align="center"}
+knitr::include_graphics("test7.jpg")
+knitr::include_graphics("test8.jpg")
+```
+
+Conclusion : 
+
+On a VC = -3.43 et $t_{\hat{\rho}}$ = -3.517. Comme $t_{\hat{\rho}}$ < VC, alors on rejette $H_0$. La série ne possède donc pas de racine unitaire. Ainsi, nous devrons utiliser la table de la loi normale étant donné qu'il n'y a pas de racine unitaire et que le nombre d'observations est supérieur à 30.
+
+
+Vérifions maintenant s'il s'agit d'un modèle 3 ou non. Nous posons alors les hypothèses suivantes :
+
+- **Hypothèses :**
+
+  $$
+  H_0 : b = 0 \quad \text{contre} \quad H_1 : b \neq 0
+  $$
+
+
+- **Statistique de test :**
+
+  $$
+  t_b = \frac{\hat{b}}{\hat{\sigma}_{\hat{b}}}
+  $$
+
+
+- **Règle de décision (avec racine unitaire) :**
+
+  $$
+  \text{On rejette } H_0 \text{ si } \lvert t_b \rvert > VC_{\text{Normale}}
+  $$
+
+  où \(VC_{\text{Normale}}\) est la valeur critique issue des tables de la loi normale.
+
+
+Conclusion : 
+
+On a VC = 1.96 et $t_{\hat{b}}$=3.236. Comme $t_{\hat{b}}$ > VC, on rejette $H_0$. Le processus correspond à un modèle 3. Ainsi, nous avons un modèle I(0)+c+T.
+
+Nous savons que la série temporelle RBUSBIS est un processus TS. Ainsi pour stationnariser ce processus nous devons faire une régression sur les résidus. 
+La varible residu regroupe l'ensemble des résidus de la régression.
+
+```{r, echo=TRUE, results='hide'}
+index=1:length(RBUSBIS)
+model3 = lm(RBUSBIS ~ index)
+summary(model3)
+residu=model3$residuals
+```
+
+
+```{r, echo=FALSE,warning=FALSE,fig.align='center', out.width='80%'}
+plot(residu, type = "l", main = "Résidus du modèle", xlab = "Temps", ylab = "Résidus")
+```
+
+On observe que les résidus fluctuent autour de 0 et que l'amplitude des variations semblent constantes dans le temps. Le processus a donc bien été stationnarisé.
+
+
+```{r acf-pacf-4, fig.width=8, fig.height=5, echo=FALSE}
+par(mfrow = c(1, 2))   # 1 ligne, 2 colonnes
+
+acf(as.numeric(residu), main = "ACF des résidus du RBUSBIS")
+pacf(as.numeric(residu), main = "PACF des résidus du RBUSBIS")
+
+par(mfrow = c(1, 1))
+```
+L'ACF montre une décroissance progressive des autocorrélations simples, suggérant que le processus est un AR. De plus, le PACF illustre une significativité pour les 2 premières autocorrélations partielles, les suivantes devenant non significatives. La combinaison de ces deux analyses suggère ainsi que la série peut être modélisée par un processus AR(2), exactement comme le RBUSBIS. Le pic isolé au retard 11 (très légèrement significatif) dans le PACF des résidus apparaît peu pertinent, confirmant que la dynamique principale est bien capturée par le modèle.
+
+#### Test KPSS
+
+Réalisons désormais un test KPSS afin de confirmer nos résultats. Nous posons les hypothèses suivantes : 
+
+- \(H_0\) : **pas de racine unitaire**
+- \(H_1\) : **présence d’une racine unitaire**
+
+
+La statistique de test KPSS est :
+\[
+LM = \frac{1}{\hat{S}_T^2} \cdot \frac{1}{T^2} \sum_{t=1}^T S_t^2
+\]
+
+On rejette l’hypothèse nulle \(H_0\) de stationnarité si :
+\[
+LM > VC_\alpha
+\]
+où \(VC_\alpha\) est la **valeur critique** tabulée par les auteurs du test.
+
+```{r, echo=FALSE}
+test <- ur.kpss(RBUSBIS, type = 'tau' , lags = 'short') 
+summary(test)
+```
+Par le test KPSS, on observe que $LM_{obs}$=0.1368<0.146=VC, donc on ne rejette pas l'hypothèse nulle de stationnarité au seuil $alpha$=5%.Le processus est bien I(0) confirmant ainsi le résultat du test de Dickey-Fuller augmenté. Néanmoins, la série RBUSBIS présente une non stationnarité déterministe, ce qui permet d'affirmer que ce processus est instable dans le temps.
+
+
+## Séléction du modèle ARMA
+
+Dans cette partie, nous cherchons à déterminer quel type de processus (AR,MA ou ARMA) est le plus adapté à la balance commerciale. Nous avons choisi cette série, qui est également la variable que nous souhaitons considérer comme dépendante dans notre étude, car les graphiques ACF et PACF de son différentiel (DBalance) montrent une structure complexe évoquant un ARMA, dont il est difficile de déterminer l’ordre exact.
+
+Afin de déterminer le type de processus suivi par DBalance, il est nécessaire de déterminer le nombre de retard p et q qui minimisent les critères d'information d'Akaike et de Schwarz.
+```{r,echo=FALSE}
+matrix_aic=matrix(0, 7, 7)
+matrix_bic=matrix(0,7,7)
+```
+Nous obtenons donc la matrice AIC et BIC suivantes : 
+```{r, echo=FALSE}
+for (i in 0 : 6) {
+  for (j in 0:6) {
+    ARMA_IJ=Arima(y=dbalance,order=c(i, 0, j), method="ML")
+    matrix_aic[i+1, j+1]=ARMA_IJ$aic
+    matrix_bic[i+1, j+1]=ARMA_IJ$bic
+  }
+}
+rownames(matrix_aic)=c("p=0","p=1","p=2","p=3","p=4", "p=5", "p=6")
+colnames(matrix_aic)=c("q=0","q=1","q=2","q=3","q=4", "q=5", "q=6")
+rownames(matrix_bic)=c("p=0","p=1","p=2","p=3","p=4", "p=5", "p=6")
+colnames(matrix_bic)=c("q=0","q=1","q=2","q=3","q=4", "q=5", "q=6")
+print(matrix_aic)
+print(matrix_bic)
+```
+
+
+
+```{r, echo=FALSE}
+pos_min_aic <- which(matrix_aic == min(matrix_aic, na.rm = TRUE), arr.ind = TRUE)
+pos_min_bic=which(matrix_bic == min(matrix_bic, na.rm = TRUE), arr.ind = TRUE)
+print(pos_min_aic)
+print(pos_min_bic)
+```
+D'après l'analyse des matrices AIC et BIC, les retards p et q, qui minimisent à la fois ces deux critères, sont : p=5 et q=0. Nous retenons donc un modèle AR(5) pour représenter le processus DBalance, ce qui vient confirmer la significativité du 5ème retard du PACF de DBalance.
+
+## Test de validation du modèle
+```{r, echo=FALSE}
+AR5=Arima(y=dbalance, order=c(5,0, 0))
+summary(AR5)
+```
+
+```{r, echo=FALSE}
+constante=AR5$coef[6]*(1-AR5$coef[1]-AR5$coef[2]-AR5$coef[3]-AR5$coef[4]-AR5$coef[5])
+print(constante)
+```
+
+La constante du modèle AR(5) est obtenue à partir de la moyenne estimée du processus et des coefficients autorégressifs. En effet, lorsque l’on écrit un modèle AR(p) sous forme non centrée, la constante structurelle s’exprime selon la formule :
+
+$$
+\hat{c} = \hat{m} \left( 1 - \sum_{i=1}^{5} \phi_i \right)
+$$
+
+où $\hat{m}$ représente la moyenne estimée de la série et  $\phi_i$  les coefficients AR(1) à AR(5). On obtient $\hat{c}$=-651.0888.
+
+```{r, echo=FALSE}
+autoplot(AR5)
+```
+On observe que les racines du polynôme $\phi(L)$ se situent à l'intérieur du disque unité complexe, ce qui indique que le modèle satisfait  bien les conditions de stationnarité.
+
+### Tests sur les paramètres
+
+
+- **Hypothèses :**
+
+  $$
+  H_0 : \phi_i = 0 \quad \text{contre} \quad H_1 : \phi_i \neq 0
+  $$
+
+
+- **Statistique de test :**
+
+  $$
+  t_{\hat{\phi_i}}
+  = \frac{\hat{\phi_i} - 0}{\hat{\sigma}_{\hat{\phi_i}}}
+  \sim_{H_0} St(T - K)
+  $$
+
+  où \(T\) est le nombre d’observations et \(K\) le nombre de paramètres estimés (ici \(p+1\), soit 7).  
+  Donc \(T - K = 180 > 30\).
+
+
+- **Remarque :**
+
+  $$
+  t_{\hat{\phi_i}} \xrightarrow[H_0]{} \mathcal{N}(0,1)
+  \quad \text{si } T - K > 30
+  $$
+
+
+- **Règle de décision :**
+
+  Si la *p-value* \(< \alpha\), alors on rejette \(H_0\).
+
+
+
+```{r, echo=FALSE}
+coeftest(AR5)
+```
+Les p-value de $ar_1$, $ar_3$, $ar_4$ et $ar_5$ sont inférieures à $\alpha$=5%. On rejette ainsi $H_0$ pour ces retards, attestant que ces retars sont significatifs à l'ordre $\alpha$=5% (et 10%) .Cependant, on observe que pour $ar_2$ et la constante du modèle, on ne rejette pas $H_0$ puisque leur p-value sont strictement supérieures à $\alpha$=5% (et 10%). Le 2ème retard et la constante sont donc jugés non significatifs dans le modèle.
+
+En pratique économique, cela revient à dire que des événements survenant quelques mois auparavant continuent d’affecter la balance (et sa série stationnarisée) plusieurs périodes après l’événement initial. La détérioration soudaine de la balance commerciale entre janvier et mars 2025 va, par conséquent, avoir un impact significatif sur sa valeur de Juillet 2025, confirmant un effet retardé et persistant des chocs récents (anticipations de politiques commerciales, achats précautionnels avant droits de douane, etc.). 
+
+Parallèlement, bien que le RBUSBIS se soit renforcé en 2025, indiquant un dollar globalement fort, la dépréciation de l'US dollar vis-à-vis de l’euro et du livre sterling rendait les exportations américaines relativement "moins chères" pour ces principaux partenaires . Cependant, la crainte d’une augmentation imminente des droits de douane a conduit à une hausse massive des importations, tandis que les exportations américaines (vers l'UE et le Royaume-Uni) ne pouvaient pas s’ajuster instantanément en raison des délais contractuels et logistiques. De plus, étant donné que le RBUSBIS a augmenté, le comportement anticipatif de beaucoup de partenaires commerciaux des États-Unis a pu diminué légèrement les exportations américaines.
+
+Ainsi, la combinaison d’un dollar globalement fort, de variations bilatérales spécifiques, d'une divergence temporaire entre taux de change et solde commercial et des comportements anticipatifs explique la persistance des effets du creux historique de janvier–mars 2025 dans le modèle AR(5) et la significativité des retards observés.  Enfin, on remarque encore une fois que cette chute exceptionnelle tend à biaiser l’ajustement du modèle, car un choc d’une telle ampleur affecte l’ensemble de la série estimée sur la période longue 2010–2025. 
+
+
+Ainsi, nous avons l'équation suivante : 
+$$
+\hat{dbalance}_t = -651.0888 -0.362264 \hat{u}_{t-1} -0.011275 \hat{u}_{t-2} - 0.303446 \hat{u}_{t-3} -0.396181 \hat{u}_{t-4}-0.387161 \hat{u}_{t-5} + \hat{\varepsilon}_t
+$$
+
+### Test sur les résiuds
+
+#### Test de Ljung box
+
+**Les hypothèses testées sont :**
+
+$$
+\begin{cases}
+H_0 : \rho_1 = \rho_2 = \dots = \rho_H = 0 \\
+H_1 : \exists\, j \in \{1, 2, \dots, H\} \text{ tel que } \rho_j \neq 0
+\end{cases}
+$$
+
+
+**La statistique de Ljung–Box est donnée par :**
+
+$$
+LB(H) = T(T + 2)\sum_{h=1}^{H} \frac{\hat{\rho}_h^2}{T - h}
+\sim_{H_0} \chi^2(H - k)
+$$
+
+où \(k\) est le nombre de paramètres du modèle (hors constante).
+
+
+**Règle de décision :** rejet de \(H_0\) au seuil \(\alpha\) si :
+
+$$
+\text{p-value} < \alpha
+$$
+
+
+```{r, echo=FALSE}
+checkresiduals(AR5,lag = 10 )
+```
+
+Ici, la p-value=0.9801>5% donc on ne rejette pas l'hypothèse nulle du test, ainsi les erreurs ne sont pas autocorrélées.
+
+#### Test d'absence d'effet d'ARCH de Engle
+
+- **Hypothèses :**
+
+  $$
+  H_0 : \alpha_1 = \dots = \alpha_p = 0 
+  \quad \text{contre} \quad 
+  H_1 : \overline{H_0}
+  $$
+
+
+- **Statistique de test :**
+
+  $$
+  LM = T' R^2 \xrightarrow[H_0]{} \chi^2_p,
+  \qquad T' = T - p
+  $$
+
+
+- **Règle de décision :**
+
+  Rejet de \(H_0\) au seuil \(\alpha = 5\%\) si :
+
+  $$
+  \text{p-value} < \alpha
+  $$
+
+
+```{r,echo=FALSE}
+library(FinTS)
+ArchTest(AR5$residuals, lags=6)
+```
+La p-value du test d'absence d'effet d'ARCH est inférieure à $alpha$=5%, on rejette ainsi l'hypothèse nulle, signifiant la présence d'effet d'ARCH dans notre modèle.
+
+#### Test de Jarque-Bera 
+
+- **Hypothèses testées :**
+
+  $$
+  \left\{
+  \begin{aligned}
+  H_0 &: S = 0 \quad \text{et} \quad K = 3 \\
+  H_1 &: S \neq 0 \quad \text{et} \quad K \neq 3
+  \end{aligned}
+  \right.
+  $$
+
+- **Statistique de test :**
+
+  $$
+  JB 
+  = \frac{T - k}{6}
+  \left[
+    \hat{S}^{\,2} 
+    + \frac{1}{4}(\hat{K} - 3)^2
+  \right]
+  \xrightarrow[H_0]{} \chi^2(2)
+  $$
+
+
+- **Règle de décision :**
+
+  Rejet de \(H_0\) au seuil \(\alpha\) si :
+
+  $$
+  JB > \chi^2_{2,1-\alpha}
+  $$
+
+  Par exemple : \(5.99\) lorsque \(\alpha = 5\%\).
+
+  Ou encore, équivalent :
+
+  $$
+  \text{p-value} < \alpha.
+  $$
+
+
+```{r,echo=FALSE, warning=FALSE}
+library(tseries)
+jarque.bera.test(AR5$residuals)
+```
+
+On observe que la p-value=2.2e-16 < $\alpha$=5%. On peut ainsi rejeter $H_0$, ce qui siginifie que les résidus ne sont normalement distribués. 
+
+Nous allons donc tenter de corriger la non-normalité des résidus et la présence d'effet d'Arch, en incluant  dans notre modèle une indicatrice, correspondante aux dates auxquelles un creux ou une forte hausse est observable. Comme mentionné précédemment, le creux record de la balance commerciale (et donc le pic positif record sur DBalance) a lieu entre janvier et mars 2025. Nous ajoutons donc une variable indicatrice captant cette forte hausse de DBalance.
+
+```{r, echo=FALSE}
+Date <- as.Date(base$Date)
+bloc_4m <- as.numeric(Date >= as.Date("2024-12-01") & Date <= as.Date("2025-03-01"))
+bloc_4m=bloc_4m[-1]
+X_bloc= cbind(bloc_4m)
+AR5_ind <- Arima(y=dbalance,order=c(5,0,0),xreg=X_bloc)
+summary(AR5_ind)
+coeftest(AR5_ind)
+```
+Nous avons choisi une indicatrice couvrant la période de décembre 2024 à mars 2025, car c’est la seule qui se révèle statistiquement significative dans le modèle. 
+
+Bien que la p-value ait augmenté, on observe que même après l'ajout de l'indicatrice, on rejette $H_0$. On conclut à une variance résiduelle non constante. Un modèle hétéroscédastique, tel qu’un GARCH, pourrait être approprié pour capturer cette dynamique, bien que son estimation ne fasse pas partie de la présente étude.
+
+Réalisons le test de Jarque-berra : 
+
+```{r,echo=FALSE}
+library(FinTS)
+ArchTest(AR5_ind$residuals, lags=6)
+```
+On observe que l'on rejette quand même $H_0$ même si la p-value a augmenté. On conclut à une variance non constante des résidus.
+
+Réalisons le test de Jarque-berra : 
+
+```{r,echo=FALSE}
+library(tseries)
+jarque.bera.test(AR5_ind$residuals)
+```
+En effectuant une nouvelle fois ce test, en incluant l'indicatrice, on remarque que l'on rejette $H_0$, ce qui nous amène à conclure à la non normalité des résidus du modèle (avec ou sans indicatrice).
+
+## Prévisions 
+
+### Sans indicatrice
+
+En nous appuyant sur l’équation autorégressive présentée ci-dessus, nous calculons les prévisions de $\hat{dbalance}_t$ jusqu’à un horizon $h = 3$.
+
+
+### Prévisions de la différentielle de balance à partir de l’équation AR(5)
+
+Nous utilisons l’équation autorégressive présentée ci-dessus pour calculer les prévisions de  
+$\hat{Y}_t$ jusqu’à un horizon $h = 3$, en itérant sur les valeurs retardées de $\hat{Y}_t$.Nous obtenons donc la formule générale suivante
+
+$$
+\left\{
+\begin{aligned}
+\hat{Y}_{t+1} &= \hat{c} -0.362264\hat{Y}_{t} -0.011275\hat{Y}_{t-1} -0.303446\hat{Y}_{t-2} -0.396181\hat{Y}_{t-3} -0.387161\hat{Y}_{t-4} \\
+\hat{Y}_{t+2} &= \hat{c} -0.362264\hat{Y}_{t+1} -0.011275\hat{Y}_{t} -0.303446\hat{Y}_{t-1} -0.396181\hat{Y}_{t-2} -0.387161\hat{Y}_{t-3} \\
+\hat{Y}_{t+3} &= \hat{c} -0.362264\hat{Y}_{t+2} -0.011275\hat{Y}_{t+1} -0.303446\hat{Y}_{t} -0.396181\hat{Y}_{t-1} -0.387161\hat{Y}_{t-2}
+\end{aligned}
+\right.
+$$
+
+
+
+En remplaçant par les valeurs on obtient : 
+
+
+$$
+\left\{
+\begin{aligned}
+\hat{Y}_{t+1} &= -651.0888 
+               - 0.362264(-19225)
+               - 0.011275(12030) \\
+             &\quad - 0.303446(-10925)
+               - 0.396181(76228)
+               - 0.387161(-16141) \\
+             &= -14457.97 \\[1em]
+\hat{Y}_{t+2} &= -651.0888
+               - 0.362264(-14457.97)
+               - 0.011275(-19225) \\
+             &\quad - 0.303446(12030)
+               - 0.396181(-10925)
+               - 0.387161(76228) \\
+             &= -24031.41 \\[1em]
+\hat{Y}_{t+3} &= -651.0888
+               - 0.362264(-24031.41)
+               - 0.011275(-14457.97) \\
+             &\quad - 0.303446(-19225)
+               - 0.396181(12030)
+               - 0.387161(-10925) \\
+             &= 13515.07
+\end{aligned}
+\right.
+$$
+
+
+
+On a vu précédemment que X était un processus DS non stationnarisé. Ainsi nous obtenons x : 
+
+\[
+\left\{
+\begin{aligned}
+\hat{X}_T(1) &= E(Y_{T+1} + X_T \mid I_T) = \hat{Y}_T(1) + X_T \\[0.7em]
+\hat{X}_T(2) &= E(Y_{T+2} + X_{T+1} \mid I_T) = \hat{Y}_T(2) + \hat{X}_T(1) \\[0.7em]
+\hat{X}_T(3) &= E(Y_{T+3} + X_{T+2} \mid I_T) = \hat{Y}_T(3) + \hat{X}_T(2)
+\end{aligned}
+\right.
+\]
+
+En remplaçant par les valeurs on a donc : 
+\[
+\left\{
+\begin{aligned}
+\hat{X}_T(1) &= -14457.97 - 78311= -92768.97 \\[0.7em]
+\hat{X}_T(2) &=  -24031.41 - 92768.97=-116800.4 \\[0.7em]
+\hat{X}_T(3) &= 13515.07 -116800.4=-103285.3
+\end{aligned}
+\right.
+\]
+
+```{r, echo=FALSE}
+forecast_AR5<-forecast(AR5,h=3,level=95)
+forecast_AR5 
+autoplot(forecast_AR5,main='Prévision de DBalance',xlab='Temps',ylab='différentiel balance commerciale')
+```
+
+La valeur réelle de la balance commerciale en août 2025 (–59,6 milliards de dollars, source : BFM Business) s’écarte nettement de notre prévision pour cette même date, suggérant que des événements récents non capturés par le modèle ont pu provoquer un décalage entre les prévisions et la réalité.
+
+# Modélisation multi-variée
+
+## Estimation du VAR
+
+Pour procéder à la modélisation bivariée, il est fondamental que les séries aient le même nombre données. La série des résidus du RBUSBIS contient une observation de plus que DBalance; nous créons donc une nouvelle série alignée sur les mêmes dates et le même nombre de données que DBalance, qui sera utilisée pour identifier le modèle VAR approprié.
+
+```{r,}
+residu2_187=residu[2:187]
+endogen=ts.intersect(dbalance, residu2_187)
+```
+
+À présent, nous procédons au choix du modèle VAR. Pour cela, nous analysons quel nombre de retards minimise les critères d'information, en privilégiant le critère de Schwarz et celui de Hannan-Quinn.
+
+```{r}
+pselect=VARselect(y=endogen, lag.max=6, type="const")
+pselect$criteria
+pselect$selection
+```
+Les critères AIC, HQ et FPE sont minimisés pour un retard de 5, tandis que le critère SC suggère un retard de 2. Nous retenons ainsi un retard optimal de 5, correspondant à un modèle VAR(5) pour capturer la dynamique conjointe des deux variables.
+
+Dans le cadre bivarié, le modèle VAR(5) retenu conserve le même nombre de retards que le modèle choisi pour DBalance (AR(5)), mais applique cette structure simultanément aux deux variables, capturant ainsi les interactions temporelles entre elles sur cinq périodes. 
+
+Pour le VAR, nous utilisons les séries stationnarisées conformément aux conclusions précédentes. La balance commerciale étant intégrée d’ordre 1, nous retenons sa première différence, DBalance, qui est stationnaire. La seconde série présentant une tendance déterministe (I(0)+c+T), nous supprimons cette tendance afin d’obtenir une série stationnaire.Comme les deux séries stationnarisées ne présentent aucune tendance résiduelle, la spécification déterministe du VAR peut se limiter à une simple constante (type = "const").
+
+```{r, echo=FALSE, results='hide'}
+VAR5=VAR(y=endogen,type="const",lag.max =5)
+summary(VAR5)
+```
+```{r, echo=FALSE, fig.show='hold', out.width="55%", fig.align="center"}
+knitr::include_graphics("test9.jpg")
+knitr::include_graphics("test10.jpg")
+knitr::include_graphics("test11.jpg")
+```
+
+L’estimation du VAR(5) confirme la dynamique univariée. En effet, DBalance suit un AR(5) avec des retards 1, 3, 4 et 5 significatifs (comme conclu à la question 4), tandis que les résidus de la série RBUSBIS présentent une modélisation proche d’un AR(2) (conforme aux analyses graphiques précédentes). 
+Les coefficients des retards des résidus du RBUSBIS dans l’équation de DBalance ne sont pas significatifs, ce qui suggère que les variations passées de RBUSBIS n’expliquent pas directement la valeur de la balance commerciale. De plus, les retards de DBalance sur les résidus de RBUSBIS ne sont également pas significatifs.
+Par ailleurs, la constante n'est pas significative dans ces deux estimations d'équations.
+
+On note néanmoins que, même si les coefficients de DBalance ne sont pas significatifs dans l'estimation de l'équation des résidus du RBUSBIS, les retards de DBalance apparaissent plus influents sur RBUSBIS que l’inverse, ce qui semble contradictoire avec l’idée initiale selon laquelle le RBUSBIS devrait influencer DBalance. On remarque d'ailleurs que le 5ème retard de DBalance a une p-value de 0.103 dans cette équation, suggérant qu'il est presque significatif au seuil de 10%. Une partie de cet effet pourrait être liée à la chute très prononcée de la balance commerciale en mars 2025, qui pourrait avoir artificiellement amplifié l'influence de DBalance sur les résidus du RBUSBIS. Le test de causalité de Granger permettra de vérifier plus rigoureusement si le RBUSBIS exerce — ou non — une influence causale sur DBalance.
+
+La corrélation faible et négative des résidus (-0,1185) confirme que les chocs simultanés entre les deux séries sont limités, et que la dynamique propre de chaque série domine les interactions dans le modèle VAR. En effet, le comportement passé de chacune des séries (DBalance et RBUSBIS) explique principalement son évolution actuelle, ce qui permet d'affirmer que les effets croisés entre les deux séries sont faibles.
+Le modèle VAR(5) explique environ 29% de la variance de DBalance (R² ajusté = 0,246) et plus de 90% de celle des résidus de RBUSBIS (R² ajusté = 0,906). Cela souligne que la série RBUSBIS est beaucoup mieux capturée par sa propre dynamique que ne l’est DBalance, dont la variance reste nettement plus difficile à expliquer par les seules composantes du VAR. 
+
+```{r, echo=FALSE}
+roots(VAR5)
+```
+
+Les racines du polynôme autorégressif du modèle VAR(5) sont toutes situées à l’intérieur du disque unité complexe (leur inverse étant bien supérieur à 1 en module), ce qui confirme que le modèle est stationnaire et que les chocs se dissipent au fil du temps.
+
+```{r, echo=FALSE}
+serial.test(VAR5, lags.pt=10, type="PT.adjusted")
+```
+
+On observe que la p-value de ce test est de 47.69% et est donc supérieure au seuil $alpha$=5%. Ainsi, on ne rejette pas $H_0$, indiquant que les résidus ne sont pas autocorrélés avec un niveau de confiance de 95%.
+
+
+## Relation de causalité
+
+Commençons par réaliser le test de causalité de Granger de DBalance sur les résidus de RBUSBIS, afin de déterminer si la balance commerciale exerce une influence causale sur RBUSBIS.
+
+- **Hypothèses du test de causalité de Granger**
+
+\[
+\begin{cases}
+H_0 : \alpha'_1 = \alpha'_2 = \cdots = \alpha'_p = 0 
+\quad (X_t \text{ ne cause pas } Y_t) \\
+H_1 : \neg H_0
+\end{cases}
+\]
+
+- **Statistique de test**
+
+\[
+F = 
+\frac{(\mathrm{SCR}_0 - \mathrm{SCR}_1)/p}
+{\mathrm{SCR}_1/(T' - 2p - 1)}
+\;\overset{H_0}{\sim}\;
+F\big(p,\, T' - 2p - 1\big)
+\]
+
+où \(\mathrm{SCR}_0\) est la somme des carrés des résidus sous \(H_0\) et  
+\(\mathrm{SCR}_1\) la somme des carrés des résidus sous \(H_1\).
+
+- **Règle de décision**
+
+On rejette \(H_0\) au seuil \(\alpha\) si
+
+\[
+F > F_{p,\,T' - 2p - 1;\,1-\alpha}
+\]
+
+ou, de façon équivalente, si \(\text{p-value} < \alpha\).
+
+
+```{r, echo=FALSE}
+TC1<-causality(VAR5,cause="dbalance")
+TC1$Granger
+```
+
+Ici, la p-value de ce test est de  46.86%, supérieure au seuil $alpha$=5%, si bien qu'on ne rejette pas l'hypothèse nulle de non-causalité. On en déduit que Dbalance ne cause pas les résidus RBUSBIS, ce qui revient implicitement à affirmer que la balance commericale ne cause pas le RBUSBIS. Ce résultat confirme donc l’absence d’influence prédictive de la balance commerciale sur la dynamique propre du RBUSBIS dans notre modèle, corroborrant les résultats de la section précédente.
+
+```{r, echo=FALSE}
+TC2<-causality(VAR5,cause="residu2_187")
+TC2$Granger
+```
+On remarque à nouveau, qu'on ne rejette pas l'hypothèse nulle de non-causalité car la p-value du test est de 65.64%, bien supérieure au seuil critique de 5% (et même de 10%). 
+
+Ce résultat est surprenant au regard de l’intuition économique initiale. En principe, cet indice de taux de change effectif (pondéré par le poids dans les échanges commerciaux) devrait influencer la compétitivité-prix des États-Unis et donc sa balance commerciale. Toutefois, cette absence de causalité suggère que le modèle ne capture pas certains déterminants clés des flux commerciaux. En effet, la balance commerciale des États-Unis (mais de n'importe quel pays en général) dépend de nombreux facteurs (souvent plus influents) qui ne figurent pas dans le VAR : l’activité économique domestique et mondiale, le revenu des partenaires commerciaux, les prix relatifs, les coûts de transport, les politiques commerciales, les anticipations des importateurs/exportateurs, ou encore la demande sectorielle.  D'autre part, l’ajustement du taux de change — qu’il soit bilatéral ou global comme le RBUSBIS — n’a pas toujours un effet immédiat sur les échanges en raison du fameux effet « J-curve » (rigidité des quantités échangées, délai logistique, contrats déjà signés). L’omission de ces variables et la complexité des mécanismes d’ajustement peuvent donc expliquer pourquoi le modèle rend très mal compte de la dynamique de DBalance (R² ajusté = 0,246, observé à la section précédente)
+
+La forte proportion de variance expliquée des résidus du RBUSBIS (R² ajusté = 0,906) reflète l’auto-dépendance marquée de la série, ses valeurs passées déterminant largement ses évolutions actuelles. Sa structure interne, simple et régulière avec des motifs répétitifs capturés par les deux premiers retards, rend ainsi le modèle très efficace pour prédire ses variations indépendamment de la balance commerciale.
+
+On peut donc supposer que d’autres facteurs intermédiaires influencent simultanément le RBUSBIS et la balance commerciale, sans que l’un ne cause directement l’autre dans la spécification retenue.
+
+## Analyse impulsion réponse
+
+Le choix de l’ordre des variables dans la décomposition de Choleski peut être justifié par les résultats des tests de causalité de Granger. La p-value du test des résidus du RBUSBIS sur DBalance étant plus élevée que celle du test de DBalance sur les résidus, on rejette "moins" l’hypothèse nulle de non-causalité dans le premier cas, ce qui coïncide avec le fait que le cinquième retard de DBalance dans l’équation des résidus (de la section précédente) est presque significatif à 10%. Cependant, cet effet est essentiellement artificiel, lié à la chute exceptionnelle de la balance commerciale en mars 2025. 
+
+Théoriquement, DBalance devrait précéder la série des résidus du RBUSBIS dans l’ordre, mais en pratique, cet ordre est choisi uniquement pour respecter la convention de Choleski, car aucune des deux séries ne cause véritablement l’autre dans notre modèle.
+
+### La méthode des VAR
+
+```{r irf-plots, echo=FALSE, fig.show="hold", out.width="48%", fig.align="center"}
+# Calcul des IRF une seule fois
+irf_bal <- irf(VAR5,
+               impulse  = "dbalance",
+               response = "residu2_187",
+               n.ahead  = 10,
+               ortho    = TRUE,
+               ci       = 0.95,
+               boot     = TRUE)
+
+irf_res <- irf(VAR5,
+               impulse  = "residu2_187",
+               response = "dbalance",
+               n.ahead  = 10,
+               ortho    = TRUE,
+               ci       = 0.95,
+               boot     = TRUE)
+
+irf_res_res <- irf(VAR5,
+                   impulse  = "residu2_187",
+                   response = "residu2_187",
+                   n.ahead  = 10,
+                   ortho    = TRUE,
+                   ci       = 0.95,
+                   boot     = TRUE)
+
+irf_bal_bal <- irf(VAR5,
+                   impulse  = "dbalance",
+                   response = "dbalance",
+                   n.ahead  = 10,
+                   ortho    = TRUE,
+                   ci       = 0.95,
+                   boot     = TRUE)
+
+# IMPORTANT : pas de graphics.off(), pas de par(mfrow) ici
+
+plot(irf_bal,
+     main = "IRF : choc de dbalance sur résidu2_187",
+     ylim = c(-0.5, 0.5))
+
+plot(irf_res,
+     main = "IRF : choc de résidu2_187 sur dbalance",
+     ylim = c(-2000, 2000))
+
+plot(irf_res_res,
+     main = "IRF : choc de résidu2_187 sur résidu2_187",
+     ylim = c(-2, 2))
+
+plot(irf_bal_bal,
+     main = "IRF : choc de dbalance sur dbalance",
+     ylim = c(-5000, 5000))
+```
+
+Les fonctions de réponse impulsionnelle obtenues à partir de la méthode VAR permettent d’illustrer la dynamique des deux séries.
+
+La balance commerciale réagit fortement à ses propres chocs. Le graphique (en bas à droite) montre une réaction initiale très marquée de DBalance, avec un pic négatif important suivi d’un retour rapide vers zéro. Les intervalles de confiance se resserrent rapidement après les premiers horizons, ce qui indique que l’effet du choc s’éteint vite et que l’incertitude autour de la dynamique future diminue. Cela suggère que, malgré son amplitude initiale, la réponse de la balance commerciale à ses propres chocs devient rapidement plus prévisible à moyen terme. Le caractère très volatil de la série révèle que la balance commerciale est extrêmement sensible à ses propres innovations, ce qui vient confirmer les retards significatifs observés dans l’estimation du modèle (ainsi que son R² assez faible).
+
+En revanche, l’effet d’un choc de DBalance sur les résidus du RBUSBIS reste quasi nul (en haut à gauche) : la réponse est extrêmement faible, ne dépasse jamais les bandes de confiance et s’annule très rapidement. Cette absence de réaction suggère implicitement qu’il ne semble pas exister de mécanisme de transmission directe entre le comportement de la balance commerciale et celui du taux RBUSBIS dans ce modèle.
+
+Inversement, lorsque la série des résidus du RBUSBIS est affectée par ses propre chocs (en bas à gauche), celle-ci réagit de manière particulièrement régulière. La réponse est amortie, monotone et très prévisible, ce qui reflète une structure autorégressive simple et stable. Le choc se propage doucement mais finit par disparaître, confirmant l’idée d’une dynamique financière beaucoup plus lisse et moins sujette aux retournements rapides que celle de la balance commerciale.
+
+L’impact des chocs des résidus sur DBalance est transitoire (en haut à droite). On observe une fluctuation de -1000M $ au deuxième horizon (vraisemblablement un ajustement mécanique lié à l’orthogonalisation du choc) mais celle-ci disparaît immédiatement et reste en permanence non significative. Autrement dit, les innovations financières captées par RBUSBIS n’exercent aucune influence mesurable sur les flux commerciaux à court ou moyen terme.
+
+L’ensemble de ces résultats souligne que chacune des séries reste dominée par sa propre dynamique interne. Cette absence de réaction croisée renforce l’idée que les relations potentielles entre commerce extérieur et conditions financières ne se matérialisent pas à travers les innovations capturées par le modèle, mais relèvent plutôt de tendances de fond que les chocs du VAR ne parviennent pas à détecter (comme explicité auparavant). 
+
+
+### Méthode de projection locale
+
+```{r, echo=FALSE}
+library(lpirfs)
+reponse_loc=lp_lin(endog_data = as.data.frame(endogen), lags_endog_lin = NaN, lags_criterion = 'BIC', max_lags = 6, trend=0,shock_type = 0, confint = 1.96, hor=12, adjust_se = TRUE)
+plot(reponse_loc)
+```
+
+
+Les projections locales confirment globalement les enseignements du VAR, tout en offrant une représentation plus flexible de la propagation des chocs. La réponse de DBalance à un choc sur elle-même est très marquée au premier horizon, puis décroît rapidement, ce qui illustre une dynamique fortement réactive mais de courte durée. Les intervalles de confiance restent relativement larges, reflétant l’incertitude importante entourant les variations de courte période. L’ensemble suggère une volatilité élevée à court terme, suivie d’un retour rapide vers la moyenne, caractéristique de séries sensibles aux chocs ponctuels mais sans persistance durable.
+
+Concernant les interactions entre variables, les projections locales confirment l’absence de transmission significative. Le choc de DBalance sur les résidus du RBUSBIS reste proche de zéro à tous les horizons, sans aucune sortie des bandes de confiance. De même, un choc des résidus du RBUSBIS entraîne une réponse très contrôlée et prédictible sur eux mêmes, mais un effet quasi nul sur la différentielle de la balance commerciale, dont la réaction demeure très faible et statistiquement insignifiante. Le principal apport des projections locales est de confirmer cette absence de causalité dynamique sans imposer la structure paramétrique du VAR, ce qui renforce la robustesse du diagnostic.
+
+Parmi l’ensemble des réponses impulsionnelles, on observe que presque tous les graphiques présentent des intervalles de confiance qui comprennent l’axe horizontal, ce qui traduit une absence d’effet statistiquement significatif. La seule exception est le graphique de la fonction de réponse de résidus sur résidus, dont l’intervalle de confiance ne recouvre pas zéro : c’est le seul choc pour lequel la réponse apparaît significative. À l’inverse, les réponses résidus sur dBalance et de dBalance sur résidus englobent l’axe des abscisses, ce qui va dans le sens des résultats du test de Granger : seule la dynamique interne du résidu est significative, tandis que la causalité entre dBalance et résidus reste globalement faible. 
+
+De plus, le graphique dBalance sur résidus ne part pas de zéro et présente une déviation initiale visible, contrairement au graphique résidus sur dBalance qui reste ancré à l’axe horizontal. Cela confirme l’intuition fournie par le test de Granger : les variations de la balance commerciale semblent exercer un effet artificiel sur les résidus de RBUSBIS , alors que l’inverse n’apparaît pas significatif. Ainsi, les deux méthodes convergent vers la même conclusion concernant le sens de la causalité.
+
+
+## Cointégration
+
+Un test de cointégration n’est pas applicable dans notre cas, car les variables du modèle ne sont pas toutes intégrées d'ordre 1. En effet, la variable balance est intégrée d'ordre 1 (I(1)) tandis que la variable RBUSBIS est I(0) +c + T. Or, la cointégration au sens d’Engle-Granger ou de Johansen requiert des séries toutes intégrées du même ordre. 
+
+# Conclusion
+
+Les résultats de ce projet montrent une très forte auto-dépendance de chaque variable, accompagnée d’une transmission quasi inexistante des chocs entre la balance commerciale américaine et le RBUSBIS. En effet, le test de causalité de Granger confirme que les variations du RBUSBIS (à des dates présentes et antérieures) ne permettent pas d’expliquer les fluctuations de la balance commerciale sur la période étudiée, contrairement à ce que l’on aurait pu penser au départ.
+
+Une des principales limite de notre projet tient au fait qu’il ne mobilise qu’un nombre restreint de déterminants potentiels de la balance commerciale. En comparant notre étude à celle menée par Martin Falk, Yvonne Wolfmayr, Irene Langer  (FIW Research Paper n°13, Determinants of the Trade Balance in Industrialized Countries), on remarque que cette dernière estime un modèle logarithmique panel sans retards, où la balance commerciale dépend du taux de change effectif réel (REER), du PIB réel domestique, du PIB réel étranger et du solde primaire en pourcentage du PIB. Les résultats montrent que, pour les États-Unis (p.31), ce sont le PIB réel domestique (coefficient –0,29) et le solde primaire (coefficient +0,206) qui expliquent la majeure partie des variations de la balance commerciale, bien davantage que le taux de change réel (coefficient –0,091) ou la croissance des partenaires (–0,01). Autrement dit, les déséquilibres commerciaux américains sont largement déterminés par des facteurs que notre VAR ne capture pas. De plus, bien que le taux de change utilisé dans cette étude (le REER) est conceptuellement proche du RBUSBIS, ces deux indicateurs restent différent. Le REER est un taux de change réel, ajusté des coûts du travail et de l’inflation, tandis que le RBUSBIS est un indice pondéré par les échanges commerciaux. Cette différence, ajoutée au contraste entre modèle statique et modèle dynamique, peut contribuer à l’absence de relation significative dans notre estimation. Néanmoins, nos résultats doivent être interprétés avec prudence en ce que l’absence de causalité détectée dans notre VAR n’implique pas l’absence d’influence économique réelle du RBUSBIS sur la balance commerciale américaine.
+
+Pour approfondir notre analyse, plusieurs extensions seraient pertinentes, comme étendre le modèle à un cadre intégrant davantage de déterminants traditionnels du commerce extérieur. Étudier séparément l’impact du RBUSBIS  sur les exportations et les importations pourrait également se montrer instructif. Il serait aussi possible d’étendre notre études à un panel de pays, afin de confirmer nos résultats. En élargissant le périmètre des variables et en adoptant des outils économétriques plus riches (GARCH, approches non linéaires), une analyse future pourrait fournir une compréhension bien plus fine des mécanismes reliant, une mesure synthétique de la valeur externe d’une devise à la balance commerciale du pays concerné.
+
+# Annexe 
+
+## Prévision avec indicatrice 
+
+```{r, echo=FALSE, warning=FALSE}
+forecast_AR5_IND<-forecast(AR5_ind,xreg=c(0,0,0),level=95) 
+forecast_AR5_IND 
+autoplot(forecast_AR5_IND,main='Prévision',xlab='Temps', ylab='différentiel de la 
+balance commerciale')
+```
+On observe que les valeurs prévues correspondent globalement aux valeurs obtenues précédemment.
+
+## Justification du VAR(5)
+
+
+```{r, echo=FALSE, results='hide'}
+var2=VAR(y=endogen,type="const",lag.max=2)
+summary(var2)
+```
+
+```{r, echo=FALSE}
+serial.test(var2, lags.pt=10, type="PT.adjusted")
+```
+Le VAR(5) semble offrir une meilleure spécification que le VAR(2), car le test de Portmanteau indique une p-value plus élevée, suggérant une moindre autocorrélation résiduelle. À l’inverse, le VAR(2) reste proche du seuil de 5 %, ce qui laisse penser que son ajustement est un peu moins satisfaisant. Ainsi, même si les deux modèles restent exploitables, le VAR(5) apparaît légèrement plus approprié.
+
+
+
+## Sources utilisées
+
+
+1. **FRED – Balance of Trade (BOPGSTB)**  
+   Correspond à la série officielle mesurant le déficit commercial mensuel des États-Unis.  
+   Utilisée pour analyser l’évolution récente du déficit.  
+   Lien : https://fred.stlouisfed.org/series/BOPGSTB
+
+2. **Wikipédia – Économie des États-Unis**  
+   Offre un aperçu général du contexte macroéconomique américain.  
+   Sert à introduire et contextualiser l’analyse.  
+   Lien : https://fr.wikipedia.org/wiki/%C3%89conomie_des_%C3%89tats-Unis
+
+3. **FRED – Taux de change euro/dollar (DEXUSEU)**  
+   Série représentant l’évolution du taux de change EUR/USD.  
+   Permet d’illustrer la réaction du marché des changes après l’élection de Donald Trump.  
+   Lien : https://fred.stlouisfed.org/series/DEXUSEU
+
+4. **FRED – Taux de change effectif réel (RBUSBIS)**  
+   Indice publié par la Banque des règlements internationaux (BIS), reflétant la valeur globale du dollar       face à un panier pondéré de devises et ajusté de l’inflation.  
+   C’est la variable centrale utilisée pour mesurer la compétitivité extérieure américaine.  
+   Lien : https://fred.stlouisfed.org/series/RBUSBIS
+
+5. **FIW – Determinants of the Trade Balance in Industrialized Countries**
+   Étude en panel analysant les principaux déterminants de la balance commerciale, dont le REER, le PIB         domestique, le PIB étranger et le solde primaire.
+   Utilisée pour comparer nos choix de variables et mettre en évidence les limites de notre modèle VAR.
+   Lien : https://www.fiw.ac.at/wp-content/uploads/2023/02/fiwstudie13.pdf
